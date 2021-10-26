@@ -10,6 +10,7 @@ epsilon = 1e-5
 from utils.loss_evaluation_fns import *
 from models.probabilistic_model import *
 from utils.test_and_log import test_fixed_part, realtime_logger
+import copy
 
 def compress_dataset(loader, agent, device, **kwargs):
     subgraphs_all = []
@@ -140,12 +141,20 @@ def train(agent,
         if epoch % eval_freq == 0 or epoch==n_epochs-1:
             with torch.no_grad():
                 kwargs['visualise_step'] = epoch
+                if kwargs['bits_per_parameter'] == 16:
+                    model_to_send = copy.deepcopy(dictionary_probs_model)
+                    model_to_send.b_logits = torch.nn.Parameter(model_to_send.b_logits.half().float())
+                    model_to_send.subgraph_in_dict_logit = torch.nn.Parameter(model_to_send.subgraph_in_dict_logit.half().float())
+                    model_to_send.atom_logits = torch.nn.Parameter(model_to_send.atom_logits.half().float())
+                else:
+                    model_to_send = dictionary_probs_model
                 log, log_args, x_a, \
                 train_comp, test_comp, val_comp, \
                 total_comp, total_comp_w_params, num_params = realtime_logger(loaders,
                                                                               dataset_names,
                                                                               agent,
-                                                                              dictionary_probs_model,
+                                                                              model_to_send,
+                                                                              # dictionary_probs_model,
                                                                               evaluation_fn,
                                                                               epoch,
                                                                               fold_idx,
